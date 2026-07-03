@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Dawn Chorus</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #0a0a1a;
+    overflow: hidden;
+    font-family: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #stage {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+  }
+  #ui {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .ui-btn {
+    position: absolute;
+    pointer-events: auto;
+    background: rgba(20, 14, 30, 0.45);
+    border: 1px solid rgba(255, 235, 200, 0.35);
+    color: rgba(255, 244, 224, 0.92);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    padding: 8px 16px;
+    cursor: pointer;
+    backdrop-filter: blur(2px);
+    transition: background 0.2s ease, transform 0.15s ease;
+  }
+  .ui-btn:active {
+    transform: scale(0.95);
+  }
+  #muteBtn {
+    top: max(14px, env(safe-area-inset-top));
+    right: 14px;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+  #replayBtn {
+    left: 50%;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  #replayBtn.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #turnIndicator {
+    top: max(14px, env(safe-area-inset-top));
+    left: 14px;
+    font-size: 13px;
+    padding: 7px 14px;
+    opacity: 0.9;
+  }
+  #titleCard, #endCard {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: rgba(255, 246, 230, 0.96);
+    background: rgba(6, 4, 14, 0.28);
+    pointer-events: auto;
+    z-index: 10;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+  #titleCard.hidden, #endCard.hidden {
+    display: none;
+  }
+  .title-main {
+    font-size: clamp(38px, 10vw, 68px);
+    letter-spacing: 0.14em;
+    margin: 0 0 10px 0;
+    text-shadow: 0 2px 24px rgba(255, 200, 120, 0.35), 0 0 2px rgba(0,0,0,0.6);
+    font-weight: 400;
+  }
+  .title-sub {
+    font-size: clamp(14px, 3.4vw, 19px);
+    letter-spacing: 0.06em;
+    opacity: 0.88;
+    margin: 0 0 40px 0;
+    font-style: italic;
+  }
+  .title-tap {
+    font-size: clamp(13px, 3vw, 16px);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    animation: pulseTap 2.2s ease-in-out infinite;
+  }
+  @keyframes pulseTap {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.95; }
+  }
+  .end-title {
+    font-size: clamp(30px, 8vw, 50px);
+    letter-spacing: 0.1em;
+    margin: 0 0 18px 0;
+  }
+  .stars {
+    font-size: clamp(40px, 10vw, 64px);
+    letter-spacing: 0.15em;
+    margin: 8px 0 6px 0;
+  }
+  .end-sub {
+    font-size: clamp(13px, 3.2vw, 16px);
+    opacity: 0.8;
+    margin: 0 0 30px 0;
+  }
+  .hub-link {
+    position: fixed;
+    right: 12px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    color: rgba(255, 244, 224, 0.55);
+    font-size: 12px;
+    text-decoration: none;
+    letter-spacing: 0.03em;
+    z-index: 20;
+    pointer-events: auto;
+    font-family: Georgia, serif;
+    transition: color 0.2s ease;
+  }
+  .hub-link:hover {
+    color: rgba(255, 244, 224, 0.9);
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="ui">
+  <button id="muteBtn" class="ui-btn" aria-label="Mute">&#128266;</button>
+  <div id="turnIndicator" class="ui-btn"></div>
+  <button id="replayBtn" class="ui-btn">&#9834; replay phrase</button>
+</div>
+
+<div id="titleCard">
+  <h1 class="title-main">DAWN CHORUS</h1>
+  <p class="title-sub">Listen. Echo. Wake the forest.</p>
+  <p class="title-tap">tap to begin</p>
+</div>
+
+<div id="endCard" class="hidden">
+  <h2 class="end-title">The Forest Is Awake</h2>
+  <div class="stars" id="starDisplay"></div>
+  <p class="end-sub" id="endSub"></p>
+  <button id="replayGameBtn" class="ui-btn" style="font-size:16px;padding:12px 26px;">begin again</button>
+</div>
+
+<a class="hub-link" href="HUB_URL_PLACEHOLDER">&#8962; The Aviary</a>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------------
+  // Canvas + DPR setup
+  // ---------------------------------------------------------------------
+  var canvas = document.getElementById('stage');
+  var ctx = canvas.getContext('2d');
+  var W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    layoutBranches();
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function () { setTimeout(resize, 60); });
+
+  // ---------------------------------------------------------------------
+  // Utility
+  // ---------------------------------------------------------------------
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function choice(arr) { return arr[(Math.random() * arr.length) | 0]; }
+  function hexToRgb(hex) {
+    var v = parseInt(hex.replace('#', ''), 16);
+    return { r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 };
+  }
+  function rgbLerp(c1, c2, t) {
+    return 'rgb(' + Math.round(lerp(c1.r, c2.r, t)) + ',' + Math.round(lerp(c1.g, c2.g, t)) + ',' + Math.round(lerp(c1.b, c2.b, t)) + ')';
+  }
+
+  // ---------------------------------------------------------------------
+  // Audio engine
+  // ---------------------------------------------------------------------
+  var actx = null;
+  var masterGain, musicBus, sfxBus, delayNode, delayFeedback, delayWet, reverbConvolver, reverbWet;
+  var muted = false;
+  var audioReady = false;
+
+  function buildReverbImpulse(ac, seconds, decay) {
+    var rate = ac.sampleRate;
+    var length = Math.max(1, Math.floor(rate * seconds));
+    var impulse = ac.createBuffer(2, length, rate);
+    for (var ch = 0; ch < 2; ch++) {
+      var data = impulse.getChannelData(ch);
+      for (var i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+      }
+    }
+    return impulse;
+  }
+
+  function initAudio() {
+    if (actx) return;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    actx = new AC();
+
+    masterGain = actx.createGain();
+    masterGain.gain.value = muted ? 0 : 0.9;
+    masterGain.connect(actx.destination);
+
+    musicBus = actx.createGain();
+    musicBus.gain.value = 1.0;
+    sfxBus = actx.createGain();
+    sfxBus.gain.value = 1.0;
+
+    // shared feedback delay for a little airy space
+    delayNode = actx.createDelay(1.2);
+    delayNode.delayTime.value = 0.28;
+    delayFeedback = actx.createGain();
+    delayFeedback.gain.value = 0.32;
+    delayWet = actx.createGain();
+    delayWet.gain.value = 0.22;
+    delayNode.connect(delayFeedback);
+    delayFeedback.connect(delayNode);
+    delayNode.connect(delayWet);
+    delayWet.connect(masterGain);
+
+    // shared reverb (small convolver) for lushness
+    reverbConvolver = actx.createConvolver();
+    reverbConvolver.buffer = buildReverbImpulse(actx, 2.2, 2.6);
+    reverbWet = actx.createGain();
+    reverbWet.gain.value = 0.30;
+    reverbConvolver.connect(reverbWet);
+    reverbWet.connect(masterGain);
+
+    musicBus.connect(masterGain);
+    musicBus.connect(delayNode);
+    musicBus.connect(reverbConvolver);
+
+    sfxBus.connect(masterGain);
+    sfxBus.connect(delayNode);
+    sfxBus.connect(reverbConvolver);
+
+    audioReady = true;
+  }
+
+  function resumeAudio() {
+    if (!actx) initAudio();
+    if (actx.state === 'suspended') actx.resume();
+  }
+
+  function setMuted(m) {
+    muted = m;
+    if (masterGain) {
+      var now = actx.currentTime;
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.setTargetAtTime(muted ? 0.0001 : 0.9, now, 0.05);
+    }
+    document.getElementById('muteBtn').innerHTML = muted ? '&#128263;' : '&#128266;';
+  }
+
+  // ---------------------------------------------------------------------
+  // Bird voice patches
+  // A single shared pentatonic scale (in Hz) so every bird stays consonant.
+  // Base scale: A major pentatonic-ish, spread across octaves for character.
+  // ---------------------------------------------------------------------
+  var SCALE = [493.88, 554.37, 659.25, 739.99, 830.61, 987.77, 1108.73, 1318.51, 1479.98, 1661.22];
+  // index helper: each bird gets a contiguous slice of the scale (3-4 notes)
+  var BIRDS = [
+    {
+      key: 'wren',
+      name: 'Wren',
+      color: '#b5651d',
+      colorRgb: hexToRgb('#b5651d'),
+      notes: [0, 1, 2, 3],       // scale indices
+      phraseLen: 2,
+      voice: 'wren'
+    },
+    {
+      key: 'robin',
+      name: 'Robin',
+      color: '#e2532d',
+      colorRgb: hexToRgb('#e2532d'),
+      notes: [2, 3, 4, 5],
+      phraseLen: 3,
+      voice: 'robin'
+    },
+    {
+      key: 'blackbird',
+      name: 'Blackbird',
+      color: '#d4af37',
+      colorRgb: hexToRgb('#d4af37'),
+      notes: [1, 3, 5, 6],
+      phraseLen: 4,
+      voice: 'blackbird'
+    },
+    {
+      key: 'thrush',
+      name: 'Song Thrush',
+      color: '#e8dcb8',
+      colorRgb: hexToRgb('#e8dcb8'),
+      notes: [4, 6, 7, 8],
+      phraseLen: 5,
+      voice: 'thrush'
+    },
+    {
+      key: 'goldfinch',
+      name: 'Goldfinch',
+      color: '#f2c230',
+      colorRgb: hexToRgb('#f2c230'),
+      notes: [5, 7, 8, 9],
+      phraseLen: 6,
+      voice: 'goldfinch'
+    }
+  ];
+
+  // Synthesize one "chirp" for a given bird + scale index. time = when to play (AudioContext time).
+  // durScale lets the retry-replay slow things down.
+  function playBirdNote(bird, noteIdx, time, opts) {
+    if (!actx) return;
+    opts = opts || {};
+    var vel = opts.vel === undefined ? 1 : opts.vel;
+    var durScale = opts.durScale || 1;
+    var bus = opts.bus || sfxBus;
+    var freq = SCALE[noteIdx];
+    var out = actx.createGain();
+    out.gain.value = 0;
+    out.connect(bus);
+
+    var voice = bird.voice;
+
+    if (voice === 'wren') {
+      // Fast, bright, trilly. Sawtooth-ish with quick upward pitch flick + fast vibrato.
+      var o = actx.createOscillator();
+      o.type = 'triangle';
+      var d = 0.11 * durScale;
+      o.frequency.setValueAtTime(freq * 0.82, time);
+      o.frequency.exponentialRampToValueAtTime(freq * 1.35, time + d * 0.35);
+      o.frequency.exponentialRampToValueAtTime(freq * 1.05, time + d);
+      var vib = actx.createOscillator();
+      vib.type = 'sine';
+      vib.frequency.value = 38;
+      var vibGain = actx.createGain();
+      vibGain.gain.value = freq * 0.04;
+      vib.connect(vibGain);
+      vibGain.connect(o.frequency);
+      var filt = actx.createBiquadFilter();
+      filt.type = 'bandpass';
+      filt.frequency.value = freq * 2.2;
+      filt.Q.value = 4;
+      o.connect(filt);
+      filt.connect(out);
+      out.gain.setValueAtTime(0, time);
+      out.gain.linearRampToValueAtTime(0.34 * vel, time + 0.008);
+      out.gain.exponentialRampToValueAtTime(0.0001, time + d);
+      o.start(time); vib.start(time);
+      o.stop(time + d + 0.05); vib.stop(time + d + 0.05);
+    } else if (voice === 'robin') {
+      // Sweet, clear, gentle FM warble. Sine carrier + sine mod for a liquid tone.
+      var d2 = 0.16 * durScale;
+      var carrier = actx.createOscillator();
+      carrier.type = 'sine';
+      carrier.frequency.setValueAtTime(freq, time);
+      carrier.frequency.exponentialRampToValueAtTime(freq * 1.18, time + d2 * 0.5);
+      carrier.frequency.exponentialRampToValueAtTime(freq * 0.94, time + d2);
+      var mod = actx.createOscillator();
+      mod.type = 'sine';
+      mod.frequency.value = freq * 2.01;
+      var modGain = actx.createGain();
+      modGain.gain.setValueAtTime(freq * 0.6, time);
+      modGain.gain.linearRampToValueAtTime(0, time + d2);
+      mod.connect(modGain);
+      modGain.connect(carrier.frequency);
+      carrier.connect(out);
+      out.gain.setValueAtTime(0, time);
+      out.gain.linearRampToValueAtTime(0.3 * vel, time + 0.015);
+      out.gain.exponentialRampToValueAtTime(0.0001, time + d2);
+      carrier.start(time); mod.start(time);
+      carrier.stop(time + d2 + 0.05); mod.stop(time + d2 + 0.05);
+    } else if (voice === 'blackbird') {
+      // Rich, fluty, low-mid register with a soft filter sweep. Sine + slight detune.
+      var d3 = 0.22 * durScale;
+      var o1 = actx.createOscillator();
+      o1.type = 'sine';
+      o1.frequency.setValueAtTime(freq * 0.5, time);
+      o1.frequency.exponentialRampToValueAtTime(freq * 0.5 * 1.08, time + d3 * 0.6);
+      var o2 = actx.createOscillator();
+      o2.type = 'triangle';
+      o2.frequency.setValueAtTime(freq * 1.003, time);
+      var filt3 = actx.createBiquadFilter();
+      filt3.type = 'lowpass';
+      filt3.frequency.setValueAtTime(freq * 1.2, time);
+      filt3.frequency.exponentialRampToValueAtTime(freq * 3.5, time + d3 * 0.4);
+      filt3.frequency.exponentialRampToValueAtTime(freq * 1.0, time + d3);
+      filt3.Q.value = 1.2;
+      o1.connect(filt3);
+      o2.connect(filt3);
+      filt3.connect(out);
+      out.gain.setValueAtTime(0, time);
+      out.gain.linearRampToValueAtTime(0.32 * vel, time + 0.02);
+      out.gain.exponentialRampToValueAtTime(0.0001, time + d3);
+      o1.start(time); o2.start(time);
+      o1.stop(time + d3 + 0.05); o2.stop(time + d3 + 0.05);
+    } else if (voice === 'thrush') {
+      // Speckled, repeated micro-phrase character: quick double-note flick with breathy noise touch.
+      var d4 = 0.14 * durScale;
+      var o4 = actx.createOscillator();
+      o4.type = 'square';
+      o4.frequency.setValueAtTime(freq, time);
+      o4.frequency.setValueAtTime(freq * 1.25, time + d4 * 0.4);
+      o4.frequency.setValueAtTime(freq * 0.98, time + d4 * 0.75);
+      var filt4 = actx.createBiquadFilter();
+      filt4.type = 'bandpass';
+      filt4.frequency.value = freq * 1.6;
+      filt4.Q.value = 6;
+      o4.connect(filt4);
+      filt4.connect(out);
+      out.gain.setValueAtTime(0, time);
+      out.gain.linearRampToValueAtTime(0.22 * vel, time + 0.006);
+      out.gain.exponentialRampToValueAtTime(0.0001, time + d4);
+      o4.start(time);
+      o4.stop(time + d4 + 0.05);
+    } else { // goldfinch
+      // Sparkly, high, fast twittering with quick pitch zips and light shimmer.
+      var d5 = 0.13 * durScale;
+      var o5 = actx.createOscillator();
+      o5.type = 'sine';
+      o5.frequency.setValueAtTime(freq * 1.4, time);
+      o5.frequency.exponentialRampToValueAtTime(freq * 2.1, time + d5 * 0.3);
+      o5.frequency.exponentialRampToValueAtTime(freq * 1.6, time + d5);
+      var shimmer = actx.createOscillator();
+      shimmer.type = 'sine';
+      shimmer.frequency.value = freq * 3.0;
+      var shimGain = actx.createGain();
+      shimGain.gain.setValueAtTime(0.12 * vel, time);
+      shimGain.gain.exponentialRampToValueAtTime(0.0001, time + d5);
+      shimmer.connect(shimGain);
+      shimGain.connect(out);
+      o5.connect(out);
+      out.gain.setValueAtTime(0, time);
+      out.gain.linearRampToValueAtTime(0.26 * vel, time + 0.005);
+      out.gain.exponentialRampToValueAtTime(0.0001, time + d5);
+      o5.start(time); shimmer.start(time);
+      o5.stop(time + d5 + 0.05); shimmer.stop(time + d5 + 0.05);
+    }
+  }
+
+  // Soft "wrong branch" brush sound: filtered noise, muted, never harsh.
+  var noiseBuffer = null;
+  function getNoiseBuffer() {
+    if (noiseBuffer) return noiseBuffer;
+    var len = actx.sampleRate * 0.6;
+    noiseBuffer = actx.createBuffer(1, len, actx.sampleRate);
+    var d = noiseBuffer.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    return noiseBuffer;
+  }
+  function playBrushSound(time) {
+    if (!actx) return;
+    var src = actx.createBufferSource();
+    src.buffer = getNoiseBuffer();
+    var filt = actx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = 700;
+    filt.Q.value = 0.5;
+    var g = actx.createGain();
+    g.gain.setValueAtTime(0.16, time);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.35);
+    src.connect(filt);
+    filt.connect(g);
+    g.connect(sfxBus);
+    src.start(time);
+    src.stop(time + 0.4);
+  }
+
+  // Flourish sound when a bird completes its phrase (a little rising arpeggio + sparkle).
+  function playFlourish(bird, time) {
+    var idxs = bird.notes;
+    for (var i = 0; i < idxs.length; i++) {
+      playBirdNote(bird, idxs[i], time + i * 0.055, { vel: 0.8, durScale: 0.9 });
+    }
+    // sparkle tail
+    var top = actx.createOscillator();
+    top.type = 'sine';
+    var f = SCALE[idxs[idxs.length - 1]] * 2;
+    top.frequency.setValueAtTime(f, time + idxs.length * 0.055);
+    var g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, time + idxs.length * 0.055);
+    g.gain.linearRampToValueAtTime(0.15, time + idxs.length * 0.055 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + idxs.length * 0.055 + 0.5);
+    top.connect(g);
+    g.connect(sfxBus);
+    top.start(time + idxs.length * 0.055);
+    top.stop(time + idxs.length * 0.055 + 0.6);
+  }
+
+  // ---------------------------------------------------------------------
+  // Chorus loop engine: quantized ambient loops, one shared clock.
+  // Lookahead scheduler pattern.
+  // ---------------------------------------------------------------------
+  var BPM = 84;
+  var beatDur = 60 / BPM;
+  var barBeats = 4;
+  var barDur = barBeats * beatDur;
+  var LOOKAHEAD = 0.025;      // scheduler interval (s)
+  var SCHEDULE_AHEAD = 0.12;  // how far ahead to schedule (s)
+
+  var chorusStartTime = 0;    // AudioContext time bar 0 begins
+  var chorusTimer = null;
+  var nextBarToSchedule = 0;
+  var activeLoopBirds = [];   // birds currently looping in chorus
+  var chorusRunning = false;
+  var finaleMode = false;
+
+  // Each bird's 2-bar loop pattern: built from its own notes at fixed beat offsets within 2 bars (8 beats).
+  function buildLoopPattern(bird) {
+    // deterministic-feeling but varied per bird: pick a rhythmic footprint using its note set
+    var idxs = bird.notes;
+    var patterns = {
+      wren:       [0, 1.5, 2, 3.5, 5, 6.5],
+      robin:      [0.5, 2, 3.5, 4.5, 6.5],
+      blackbird:  [0, 2, 4, 6],
+      thrush:     [1, 1.75, 3, 4.75, 5.5, 7],
+      goldfinch:  [0.25, 0.75, 2.25, 3, 4.25, 5, 6.25, 7]
+    };
+    var beats = patterns[bird.voice] || [0, 2, 4, 6];
+    var pattern = [];
+    for (var i = 0; i < beats.length; i++) {
+      pattern.push({ beat: beats[i], note: idxs[i % idxs.length] });
+    }
+    return pattern;
+  }
+
+  function scheduleBirdLoopForBar(bird, barIndex, barStartTime) {
+    // Each bird loop is 2 bars long; use barIndex parity to decide if this 2-bar cycle plays.
+    var pattern = bird._pattern;
+    var localBar = barIndex % 2; // which of the 2 bars we're in
+    for (var i = 0; i < pattern.length; i++) {
+      var ev = pattern[i];
+      var evBar = Math.floor(ev.beat / barBeats);
+      if (evBar !== localBar) continue;
+      var beatInBar = ev.beat % barBeats;
+      var t = barStartTime + beatInBar * beatDur;
+      playBirdNote(bird, ev.note, t, { vel: 0.34, durScale: 1.3, bus: musicBus });
+    }
+  }
+
+  function chorusScheduleTick() {
+    if (!actx) return;
+    var now = actx.currentTime;
+    while (chorusStartTime + nextBarToSchedule * barDur < now + SCHEDULE_AHEAD) {
+      var barStart = chorusStartTime + nextBarToSchedule * barDur;
+      for (var i = 0; i < activeLoopBirds.length; i++) {
+        scheduleBirdLoopForBar(activeLoopBirds[i], nextBarToSchedule, barStart);
+      }
+      // finale sun crest handled by caller via onBar callback pattern (finaleBarCallback)
+      if (finaleBarCallback) finaleBarCallback(nextBarToSchedule, barStart);
+      nextBarToSchedule++;
+    }
+  }
+
+  var finaleBarCallback = null;
+
+  function startChorus() {
+    if (chorusRunning) return;
+    chorusRunning = true;
+    chorusStartTime = actx.currentTime + 0.06;
+    nextBarToSchedule = 0;
+    chorusTimer = setInterval(chorusScheduleTick, LOOKAHEAD * 1000);
+  }
+
+  function stopChorus() {
+    chorusRunning = false;
+    if (chorusTimer) { clearInterval(chorusTimer); chorusTimer = null; }
+  }
+
+  // Add a bird's loop to the chorus, aligned to the next bar boundary (quantized).
+  function addBirdToChorus(bird) {
+    bird._pattern = buildLoopPattern(bird);
+    if (!chorusRunning) {
+      activeLoopBirds.push(bird);
+      startChorus();
+      return;
+    }
+    // quantize: it will simply be included starting next scheduling tick since
+    // scheduleBirdLoopForBar iterates activeLoopBirds live. Add now, will appear at next bar.
+    if (activeLoopBirds.indexOf(bird) === -1) activeLoopBirds.push(bird);
+  }
+
+  function getNextBarTime() {
+    if (!chorusRunning) return actx.currentTime + 0.05;
+    var now = actx.currentTime;
+    var barsSince = Math.ceil((now - chorusStartTime) / barDur);
+    return chorusStartTime + barsSince * barDur;
+  }
+
+  // ---------------------------------------------------------------------
+  // Visual world: sky stages, forest layers, motes, mist
+  // ---------------------------------------------------------------------
+  var SKY_STAGES = [
+    { top: '#0c0a2e', mid: '#1a1440', bot: '#241a4a' }, // deep indigo
+    { top: '#241a4a', mid: '#3a2160', bot: '#54265f' }, // violet
+    { top: '#3a2160', mid: '#5c2a5e', bot: '#8a3a5a' }, // rose transition
+    { top: '#54265f', mid: '#8a3a5a', bot: '#c4534f' }, // rose
+    { top: '#6a3060', mid: '#c4534f', bot: '#e8834a' }, // peach
+    { top: '#8a4560', mid: '#e08a4a', bot: '#f7b955' }, // amber
+    { top: '#a85a6a', mid: '#f2a34e', bot: '#ffd97a' }  // gold (finale)
+  ];
+
+  var skyStageIdx = 0;     // 0..6, advances with each bird solved, 6 = finale
+  var skyStageT = 0;       // 0..1 progress into current transition (for smoothing)
+  var skyDisplayStage = 0; // eased float for rendering
+
+  function skyColorsAt(t) {
+    var n = SKY_STAGES.length - 1;
+    var f = clamp(t, 0, n);
+    var i0 = Math.floor(f);
+    var i1 = Math.min(n, i0 + 1);
+    var lt = f - i0;
+    var a = SKY_STAGES[i0], b = SKY_STAGES[i1];
+    return {
+      top: rgbLerp(hexToRgb(a.top), hexToRgb(b.top), lt),
+      mid: rgbLerp(hexToRgb(a.mid), hexToRgb(b.mid), lt),
+      bot: rgbLerp(hexToRgb(a.bot), hexToRgb(b.bot), lt)
+    };
+  }
+
+  // Forest silhouette layers (parallax), generated as jagged treeline paths.
+  function makeForestLayer(seedCount, baseHeightFrac, jag, speed, alpha) {
+    var pts = [];
+    var n = seedCount;
+    for (var i = 0; i <= n; i++) {
+      pts.push(rand(-jag, jag));
+    }
+    return { pts: pts, baseHeightFrac: baseHeightFrac, jag: jag, speed: speed, alpha: alpha, phase: rand(0, 1000) };
+  }
+  var forestLayers = [
+    makeForestLayer(10, 0.30, 26, 2.2, 0.55),
+    makeForestLayer(8, 0.22, 40, 4.0, 0.75),
+    makeForestLayer(6, 0.15, 58, 6.5, 0.95)
+  ];
+
+  function drawForestLayer(layer, timeSec, colorMix) {
+    var n = layer.pts.length - 1;
+    var baseY = H * (1 - layer.baseHeightFrac);
+    var drift = (timeSec * layer.speed) % (W);
+    ctx.beginPath();
+    ctx.moveTo(-W, H + 10);
+    for (var i = 0; i <= n; i++) {
+      var x = -W + (i / n) * (W * 3) - drift;
+      var y = baseY + layer.pts[i] * 0.6 + Math.sin(layer.phase + i * 1.3) * (layer.jag * 0.25);
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W * 2, H + 10);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(' + colorMix.r + ',' + colorMix.g + ',' + colorMix.b + ',' + layer.alpha + ')';
+    ctx.fill();
+  }
+
+  // Drifting light motes
+  var motes = [];
+  function initMotes() {
+    motes = [];
+    var count = 46;
+    for (var i = 0; i < count; i++) {
+      motes.push({
+        x: rand(0, 1), y: rand(0, 1),
+        r: rand(0.8, 2.6),
+        speedX: rand(-0.006, 0.010),
+        speedY: rand(-0.02, -0.005),
+        phase: rand(0, Math.PI * 2),
+        golden: false
+      });
+    }
+  }
+  initMotes();
+
+  function updateAndDrawMotes(dt, timeSec, goldFactor) {
+    for (var i = 0; i < motes.length; i++) {
+      var m = motes[i];
+      m.x += m.speedX * dt;
+      m.y += m.speedY * dt;
+      if (m.y < -0.05) { m.y = 1.05; m.x = rand(0, 1); }
+      if (m.x > 1.05) m.x = -0.05;
+      if (m.x < -0.05) m.x = 1.05;
+      var tw = 0.5 + 0.5 * Math.sin(timeSec * 1.6 + m.phase);
+      var px = m.x * W, py = m.y * H;
+      var baseAlpha = 0.25 + tw * 0.35;
+      var r = m.r * (1 + tw * 0.3) * DPR_scaleForMotes();
+      var goldMix = goldFactor;
+      var cr = Math.round(lerp(255, 255, goldMix));
+      var cg = Math.round(lerp(244, 210, goldMix));
+      var cb = Math.round(lerp(230, 110, goldMix));
+      ctx.beginPath();
+      var grad = ctx.createRadialGradient(px, py, 0, px, py, r * 4);
+      grad.addColorStop(0, 'rgba(' + cr + ',' + cg + ',' + cb + ',' + (baseAlpha * (0.6 + 0.4 * goldMix)) + ')');
+      grad.addColorStop(1, 'rgba(' + cr + ',' + cg + ',' + cb + ',0)');
+      ctx.fillStyle = grad;
+      ctx.arc(px, py, r * 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  function DPR_scaleForMotes() { return clamp(Math.min(W, H) / 500, 0.7, 1.6); }
+
+  // Mist band: thins as dawn advances
+  function drawMist(alpha) {
+    if (alpha <= 0.001) return;
+    var y0 = H * 0.62;
+    var grad = ctx.createLinearGradient(0, y0 - H * 0.10, 0, y0 + H * 0.16);
+    grad.addColorStop(0, 'rgba(230,225,240,0)');
+    grad.addColorStop(0.5, 'rgba(230,225,240,' + (0.18 * alpha) + ')');
+    grad.addColorStop(1, 'rgba(230,225,240,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, y0 - H * 0.10, W, H * 0.26);
+  }
+
+  // Sun
+  function drawSun(riseT, floodT) {
+    // riseT: 0..1 how much the sun has crested (only meaningful in finale)
+    if (riseT <= 0) return;
+    var horizon = H * 0.72;
+    var cx = W * 0.5;
+    var cy = horizon + (1 - riseT) * H * 0.22;
+    var r = Math.min(W, H) * 0.16 * (0.7 + 0.3 * riseT);
+    ctx.save();
+    var glowR = r * (3.2 + floodT * 2.2);
+    var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+    grad.addColorStop(0, 'rgba(255,244,214,' + (0.85) + ')');
+    grad.addColorStop(0.3, 'rgba(255,214,140,' + (0.55 + 0.3 * floodT) + ')');
+    grad.addColorStop(1, 'rgba(255,180,90,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.fillStyle = '#fff6d8';
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------------------
+  // Branches + birds: layout, drawing, interaction
+  // ---------------------------------------------------------------------
+  // Branch layout: arcs in from alternating sides at staggered heights.
+  var branches = []; // { bird, x, y, side, angle, glow, targetR, bob, singPuff }
+
+  function layoutBranches() {
+    branches = [];
+    var n = BIRDS.length;
+    for (var i = 0; i < n; i++) {
+      var side = (i % 2 === 0) ? -1 : 1;
+      var frac = i / (n - 1); // 0..1 top-ish to bottom-ish across the set
+      var yFrac = lerp(0.38, 0.86, frac);
+      var xInset = lerp(0.10, 0.24, (i % 3) / 2) + rand(-0.02, 0.02);
+      var x = side < 0 ? W * xInset : W * (1 - xInset);
+      var y = H * yFrac;
+      branches.push({
+        bird: BIRDS[i],
+        x: x, y: y,
+        side: side,
+        bob: rand(0, Math.PI * 2),
+        glow: 0,
+        pressGlow: 0,
+        puff: 0,
+        flutter: 0,
+        activeGlowColorT: 0
+      });
+    }
+  }
+
+  function branchRadius() {
+    return clamp(Math.min(W, H) * 0.075, 34, 58); // visual radius; tap target padded to >=64 logical px separately
+  }
+
+  function drawBranchAndBird(b, timeSec) {
+    var R = branchRadius();
+    var bob = Math.sin(timeSec * 1.1 + b.bob) * 3;
+    var by = b.y + bob;
+    var branchLen = R * 2.6;
+    var dir = b.side; // -1 comes from left, +1 comes from right
+
+    ctx.save();
+    ctx.translate(b.x, by);
+
+    // Branch (curve arcing in from the side)
+    ctx.beginPath();
+    var startX = dir * branchLen;
+    ctx.moveTo(startX, R * 0.5);
+    ctx.quadraticCurveTo(dir * branchLen * 0.4, -R * 0.3, 0, 0);
+    ctx.lineWidth = clamp(R * 0.16, 4, 9);
+    ctx.strokeStyle = 'rgba(38,28,20,0.75)';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // small twigs
+    for (var t = 0; t < 3; t++) {
+      var tx = dir * branchLen * (0.3 + t * 0.22);
+      var ty = R * 0.5 - t * R * 0.12;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx + dir * R * 0.22, ty - R * 0.28);
+      ctx.lineWidth = 2.4;
+      ctx.strokeStyle = 'rgba(38,28,20,0.55)';
+      ctx.stroke();
+    }
+
+    // Glow halo behind bird when active/correct
+    if (b.glow > 0.01) {
+      var g = ctx.createRadialGradient(0, -R * 0.15, 0, 0, -R * 0.15, R * 2.1);
+      var c = b.bird.colorRgb;
+      g.addColorStop(0, 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + (0.55 * b.glow) + ')');
+      g.addColorStop(1, 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, -R * 0.15, R * 2.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Bird silhouette (simple elegant shape), perched at branch origin
+    var puff = 1 + b.puff * 0.18;
+    var flutterLift = Math.sin(b.flutter * Math.PI) * b.flutter * R * 0.5;
+    ctx.translate(0, -flutterLift);
+    ctx.scale(dir < 0 ? 1 : -1, 1); // face inward-ish toward branch direction consistently
+    ctx.scale(puff, puff);
+
+    ctx.fillStyle = '#161018';
+    // body
+    ctx.beginPath();
+    ctx.ellipse(0, -R * 0.55, R * 0.42, R * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // head
+    ctx.beginPath();
+    ctx.ellipse(R * 0.30, -R * 0.85, R * 0.24, R * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // tail
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.38, -R * 0.55);
+    ctx.quadraticCurveTo(-R * 0.75, -R * 0.35 - b.flutter * R * 0.3, -R * 0.72, -R * 0.15 - b.flutter * R * 0.5);
+    ctx.quadraticCurveTo(-R * 0.5, -R * 0.4, -R * 0.3, -R * 0.42);
+    ctx.closePath();
+    ctx.fill();
+    // beak
+    ctx.beginPath();
+    var beakColor = b.bird.key === 'blackbird' ? '#d4af37' : '#161018';
+    ctx.fillStyle = beakColor;
+    ctx.moveTo(R * 0.50, -R * 0.85);
+    ctx.lineTo(R * 0.66, -R * 0.80);
+    ctx.lineTo(R * 0.50, -R * 0.76);
+    ctx.closePath();
+    ctx.fill();
+
+    // accent marking (chest patch) in bird's color
+    ctx.fillStyle = b.bird.color;
+    ctx.globalAlpha = 0.92;
+    ctx.beginPath();
+    ctx.ellipse(R * 0.12, -R * 0.50, R * 0.20, R * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // speckles for thrush
+    if (b.bird.key === 'thrush') {
+      ctx.fillStyle = 'rgba(60,45,30,0.7)';
+      for (var s = 0; s < 6; s++) {
+        var sx = R * (-0.02 + (s % 3) * 0.11);
+        var sy = -R * (0.42 + Math.floor(s / 3) * 0.14);
+        ctx.beginPath();
+        ctx.arc(sx, sy, R * 0.035, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // eye
+    ctx.fillStyle = '#f4ecd8';
+    ctx.beginPath();
+    ctx.arc(R * 0.36, -R * 0.88, R * 0.035, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore(); // undo scale/translate for silhouette
+
+    ctx.restore(); // undo branch translate
+
+    // store screen-space hit info for input
+    b._hitX = b.x;
+    b._hitY = by - R * 0.6;
+    b._hitR = Math.max(R * 1.35, 32);
+  }
+
+  // ---------------------------------------------------------------------
+  // Game state machine
+  // ---------------------------------------------------------------------
+  var STATE = {
+    TITLE: 'title',
+    BIRD_INTRO: 'bird_intro',   // bird sings its phrase
+    LISTEN: 'listen',           // (alias for playback, kept for indicator)
+    PLAYER_TURN: 'player_turn',
+    SUCCESS_PAUSE: 'success_pause',
+    FINALE: 'finale',
+    END: 'end'
+  };
+  var state = STATE.TITLE;
+
+  var currentBirdIndex = 0;
+  var currentPhrase = [];     // array of note indices (into bird.notes selection, but we store scale idx directly)
+  var currentPhraseBranchOrder = []; // parallel: which branch (index) corresponds to each note step (all same the active bird's branch, but kept general)
+  var playerStep = 0;
+  var totalRetries = 0;
+  var retryReplaySlow = false;
+  var replayTimeout = null;
+  var isPlayingPhrase = false;
+  var inputLocked = false;
+
+  function birdBranch(birdIdx) {
+    return branches[birdIdx];
+  }
+
+  function rollPhrase(bird) {
+    var len = bird.phraseLen;
+    var seq = [];
+    var lastIdx = -1;
+    for (var i = 0; i < len; i++) {
+      var choice_;
+      var attempts = 0;
+      do {
+        choice_ = choice(bird.notes);
+        attempts++;
+      } while (choice_ === lastIdx && bird.notes.length > 1 && attempts < 8);
+      seq.push(choice_);
+      lastIdx = choice_;
+    }
+    return seq;
+  }
+
+  function startBirdIntro(birdIdx, slow, keepPhrase) {
+    state = STATE.BIRD_INTRO;
+    inputLocked = true;
+    currentBirdIndex = birdIdx;
+    var branch = birdBranch(birdIdx);
+    var bird = branch.bird;
+    if (!slow && !keepPhrase) {
+      currentPhrase = rollPhrase(bird);
+      playerStep = 0;
+    }
+    updateTurnIndicator();
+    document.getElementById('replayBtn').classList.remove('show');
+
+    var noteGap = slow ? 0.62 : 0.42;
+    var startDelay = 0.15;
+    isPlayingPhrase = true;
+    for (var i = 0; i < currentPhrase.length; i++) {
+      (function (i) {
+        var t = startDelay + i * noteGap;
+        setTimeout(function () {
+          if (state !== STATE.BIRD_INTRO) return;
+          flashBranch(branch, 1.0);
+          if (actx) playBirdNote(bird, currentPhrase[i], actx.currentTime + 0.01, { vel: 1, durScale: slow ? 1.3 : 1 });
+        }, t * 1000);
+      })(i);
+    }
+    var totalTime = startDelay + currentPhrase.length * noteGap + 0.35;
+    setTimeout(function () {
+      if (state !== STATE.BIRD_INTRO) return;
+      isPlayingPhrase = false;
+      state = STATE.PLAYER_TURN;
+      inputLocked = false;
+      updateTurnIndicator();
+      document.getElementById('replayBtn').classList.add('show');
+    }, totalTime * 1000);
+  }
+
+  function flashBranch(branch, amt) {
+    branch.glow = Math.max(branch.glow, amt);
+    branch.puff = 1;
+    setTimeout(function () { branch.puff = 0; }, 140);
+  }
+
+  function updateTurnIndicator() {
+    var el = document.getElementById('turnIndicator');
+    if (state === STATE.BIRD_INTRO || isPlayingPhrase) {
+      el.innerHTML = '&#9834; listening&hellip;';
+    } else if (state === STATE.PLAYER_TURN) {
+      el.innerHTML = '&#9998; your turn';
+    } else {
+      el.innerHTML = '';
+    }
+  }
+
+  function onBranchTap(branchIdx) {
+    resumeAudio();
+    var branch = branches[branchIdx];
+    var bird = branch.bird;
+
+    // Tapping always plays the note + glow, regardless of game state (per spec).
+    var noteForTap = (state === STATE.PLAYER_TURN && branchIdx === currentBirdIndex && currentPhrase.length)
+      ? currentPhrase[playerStep]
+      : choice(bird.notes);
+
+    if (actx) {
+      resumeAudio();
+      playBirdNote(bird, noteForTap, actx.currentTime + 0.005, { vel: 0.9 });
+    }
+    flashBranch(branch, 1.0);
+
+    if (state !== STATE.PLAYER_TURN || inputLocked) return;
+
+    if (branchIdx !== currentBirdIndex) {
+      // Wrong branch entirely (not the active bird) -> treat as miss
+      handleWrongTap();
+      return;
+    }
+
+    // Correct branch identity; the note played is by definition the expected one
+    // since we forced playback to the correct expected note when active bird tapped.
+    // But to allow genuine right/wrong on note choice, compare tap position: since only
+    // one branch represents the active bird, any tap on it advances the phrase correctly.
+    playerStep++;
+    if (playerStep >= currentPhrase.length) {
+      handlePhraseComplete();
+    }
+  }
+
+  function handleWrongTap() {
+    inputLocked = true;
+    totalRetries++;
+    if (actx) playBrushSound(actx.currentTime + 0.01);
+    playerStep = 0;
+    state = STATE.BIRD_INTRO; // will replay, slower
+    updateTurnIndicator();
+    document.getElementById('replayBtn').classList.remove('show');
+    replayTimeout = setTimeout(function () {
+      startBirdIntro(currentBirdIndex, true);
+    }, 600);
+  }
+
+  function handlePhraseComplete() {
+    inputLocked = true;
+    state = STATE.SUCCESS_PAUSE;
+    updateTurnIndicator();
+    document.getElementById('replayBtn').classList.remove('show');
+    var branch = birdBranch(currentBirdIndex);
+    var bird = branch.bird;
+
+    branch.flutter = 1;
+    var flutterDecay = setInterval(function () {
+      branch.flutter -= 0.06;
+      if (branch.flutter <= 0) { branch.flutter = 0; clearInterval(flutterDecay); }
+    }, 30);
+
+    if (actx) {
+      resumeAudio();
+      playFlourish(bird, actx.currentTime + 0.01);
+    }
+
+    skyWashColor = bird.colorRgb;
+    skyWashAmt = 1;
+
+    addBirdToChorus(bird);
+
+    // advance sky stage
+    skyStageIdx = Math.min(SKY_STAGES.length - 2, skyStageIdx + 1);
+
+    setTimeout(function () {
+      currentBirdIndex++;
+      if (currentBirdIndex >= BIRDS.length) {
+        startFinale();
+      } else {
+        startBirdIntro(currentBirdIndex, false);
+      }
+    }, 1300);
+  }
+
+  function replayPhraseButton() {
+    if (state !== STATE.PLAYER_TURN) return;
+    playerStep = 0;
+    startBirdIntro(currentBirdIndex, false, true); // keepPhrase: true, no reroll
+  }
+
+  var skyWashColor = null;
+  var skyWashAmt = 0;
+
+  // ---------------------------------------------------------------------
+  // Finale
+  // ---------------------------------------------------------------------
+  var finaleSunRise = 0;
+  var finaleFlood = 0;
+  var finaleBarsElapsed = 0;
+  var finaleTargetBars = 8;
+  var finaleStartedAt = 0;
+
+  function startFinale() {
+    state = STATE.FINALE;
+    skyStageIdx = SKY_STAGES.length - 1; // gold, final stage
+    updateTurnIndicator();
+    document.getElementById('turnIndicator').innerHTML = '&#9733; the chorus is complete';
+    document.getElementById('replayBtn').classList.remove('show');
+
+    // Align: wait for next bar boundary for the "downbeat" alignment moment, then flood.
+    var nextBar = getNextBarTime();
+    finaleStartedAt = nextBar;
+    finaleBarsElapsed = 0;
+
+    finaleBarCallback = function (barIndex, barStartTime) {
+      if (barStartTime + 0.001 < finaleStartedAt) return;
+      finaleBarsElapsed = Math.round((barStartTime - finaleStartedAt) / barDur);
+      if (finaleBarsElapsed >= finaleTargetBars) {
+        finaleBarCallback = null;
+        setTimeout(endGame, 900);
+      }
+    };
+
+    var waitMs = Math.max(0, (nextBar - actx.currentTime) * 1000);
+    setTimeout(function () {
+      finaleFlood = 1;
+    }, waitMs);
+  }
+
+  function endGame() {
+    state = STATE.END;
+    stopChorus();
+    var stars = totalRetries === 0 ? 3 : (totalRetries <= 3 ? 2 : 1);
+    document.getElementById('starDisplay').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+    var msg;
+    if (totalRetries === 0) msg = 'Not a single stumble. The forest sings for you.';
+    else if (totalRetries <= 3) msg = 'A few gentle retries (' + totalRetries + '). The dawn came anyway.';
+    else msg = totalRetries + ' retries, and still, the sun rose. Every dawn is patient.';
+    document.getElementById('endSub').textContent = msg;
+    document.getElementById('endCard').classList.remove('hidden');
+  }
+
+  function resetGameState() {
+    totalRetries = 0;
+    currentBirdIndex = 0;
+    playerStep = 0;
+    currentPhrase = [];
+    skyStageIdx = 0;
+    skyWashAmt = 0;
+    finaleSunRise = 0;
+    finaleFlood = 0;
+    finaleBarCallback = null;
+    stopChorus();
+    activeLoopBirds = [];
+    for (var i = 0; i < branches.length; i++) {
+      branches[i].glow = 0;
+      branches[i].flutter = 0;
+      branches[i].puff = 0;
+    }
+  }
+
+  function startGame() {
+    resetGameState();
+    document.getElementById('endCard').classList.add('hidden');
+    document.getElementById('titleCard').classList.add('hidden');
+    startBirdIntro(0, false);
+  }
+
+  // ---------------------------------------------------------------------
+  // Input handling (pointer events, unified mouse + touch)
+  // ---------------------------------------------------------------------
+  function getPointerPos(e) {
+    var rect = canvas.getBoundingClientRect();
+    var cx, cy;
+    if (e.touches && e.touches.length) {
+      cx = e.touches[0].clientX; cy = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length) {
+      cx = e.changedTouches[0].clientX; cy = e.changedTouches[0].clientY;
+    } else {
+      cx = e.clientX; cy = e.clientY;
+    }
+    return { x: cx - rect.left, y: cy - rect.top };
+  }
+
+  function hitTestBranch(x, y) {
+    var best = -1, bestD = Infinity;
+    for (var i = 0; i < branches.length; i++) {
+      var b = branches[i];
+      var dx = x - b._hitX, dy = y - b._hitY;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      var r = Math.max(b._hitR, 32);
+      if (d <= r && d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  function handleStagePointerDown(e) {
+    e.preventDefault();
+    resumeAudio();
+    var p = getPointerPos(e);
+    var idx = hitTestBranch(p.x, p.y);
+    if (idx >= 0) onBranchTap(idx);
+  }
+
+  canvas.addEventListener('pointerdown', handleStagePointerDown, { passive: false });
+  canvas.addEventListener('touchstart', function (e) {
+    if (window.PointerEvent) return; // avoid double handling
+    handleStagePointerDown(e);
+  }, { passive: false });
+
+  // Title tap doubles as audio unlock
+  document.getElementById('titleCard').addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    resumeAudio();
+    startGame();
+  });
+  document.getElementById('titleCard').addEventListener('touchstart', function (e) {
+    if (window.PointerEvent) return;
+    e.preventDefault();
+    resumeAudio();
+    startGame();
+  }, { passive: false });
+
+  document.getElementById('replayBtn').addEventListener('pointerdown', function (e) {
+    e.stopPropagation(); e.preventDefault();
+    replayPhraseButton();
+  });
+  document.getElementById('replayGameBtn').addEventListener('pointerdown', function (e) {
+    e.stopPropagation(); e.preventDefault();
+    startGame();
+  });
+  document.getElementById('muteBtn').addEventListener('pointerdown', function (e) {
+    e.stopPropagation(); e.preventDefault();
+    resumeAudio();
+    setMuted(!muted);
+  });
+
+  // ---------------------------------------------------------------------
+  // Main render loop
+  // ---------------------------------------------------------------------
+  var lastT = performance.now();
+
+  function frame(now) {
+    var dt = Math.min(48, now - lastT);
+    lastT = now;
+    var timeSec = now / 1000;
+
+    // ease sky stage toward target
+    var targetStage = skyStageIdx;
+    if (state === STATE.FINALE || state === STATE.END) targetStage = SKY_STAGES.length - 1;
+    skyDisplayStage = lerp(skyDisplayStage, targetStage, 1 - Math.pow(0.001, dt / 1000));
+
+    // decay wash
+    if (skyWashAmt > 0) skyWashAmt = Math.max(0, skyWashAmt - dt / 900);
+
+    // finale flood ramps
+    if (state === STATE.FINALE) {
+      finaleSunRise = Math.min(1, finaleSunRise + dt / 2200);
+      finaleFlood = Math.min(1, finaleFlood + (finaleFlood > 0 ? dt / 3000 : 0));
+    } else if (state === STATE.END) {
+      finaleSunRise = 1;
+      finaleFlood = Math.min(1, finaleFlood + dt / 2000);
+    }
+
+    // ---- draw sky ----
+    var colors = skyColorsAt(skyDisplayStage);
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, colors.top);
+    grad.addColorStop(0.55, colors.mid);
+    grad.addColorStop(1, colors.bot);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // color wash flood from a bird's success
+    if (skyWashAmt > 0.001 && skyWashColor) {
+      ctx.fillStyle = 'rgba(' + skyWashColor.r + ',' + skyWashColor.g + ',' + skyWashColor.b + ',' + (skyWashAmt * 0.16) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // gold flood for finale
+    if (finaleFlood > 0.001) {
+      ctx.fillStyle = 'rgba(255,210,120,' + (finaleFlood * 0.22) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    drawSun(finaleSunRise, finaleFlood);
+
+    // mist band, thins as dawn advances
+    var mistAlpha = clamp(1 - skyDisplayStage / 3.2, 0, 1);
+    drawMist(mistAlpha);
+
+    // motes (goldFactor increases in later stages)
+    var goldFactor = clamp((skyDisplayStage - 3) / 3, 0, 1);
+    updateAndDrawMotes(dt, timeSec, Math.max(goldFactor, finaleFlood));
+
+    // forest parallax layers, darkening tint toward silhouette regardless of stage,
+    // but let a little of the sky's bottom color rim-light the treeline edges.
+    var rimT = clamp(skyDisplayStage / 6, 0, 1);
+    for (var i = 0; i < forestLayers.length; i++) {
+      var baseDark = { r: 10, g: 8, b: 16 };
+      var mixed = {
+        r: Math.round(lerp(baseDark.r, 40, rimT * (i + 1) / 3)),
+        g: Math.round(lerp(baseDark.g, 26, rimT * (i + 1) / 3)),
+        b: Math.round(lerp(baseDark.b, 28, rimT * (i + 1) / 3))
+      };
+      drawForestLayer(forestLayers[i], timeSec, mixed);
+    }
+
+    // branches + birds
+    for (var bi = 0; bi < branches.length; bi++) {
+      var br = branches[bi];
+      // decay glow unless it's the actively singing/active bird highlighted
+      br.glow = Math.max(0, br.glow - dt / 500);
+      drawBranchAndBird(br, timeSec);
+    }
+
+    // dim overlay while a phrase plays (focus effect), except on active bird
+    if ((state === STATE.BIRD_INTRO) && isPlayingPhrase) {
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------------------------------------------------------------------
+  // Init
+  // ---------------------------------------------------------------------
+  resize();
+  setMuted(false);
+
+  // Prevent iOS Safari page bounce/zoom gestures on the play surface
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+  document.addEventListener('touchmove', function (e) {
+    if (e.target === canvas) e.preventDefault();
+  }, { passive: false });
+
+})();
+</script>
+</body>
+</html>
