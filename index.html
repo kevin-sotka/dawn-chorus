@@ -152,6 +152,155 @@
   .hub-link:hover {
     color: rgba(255, 244, 224, 0.9);
   }
+  #preloadHint {
+    position: fixed;
+    left: 50%;
+    bottom: max(54px, calc(env(safe-area-inset-bottom) + 40px));
+    transform: translateX(-50%);
+    color: rgba(255, 244, 224, 0.55);
+    font-size: 12px;
+    font-style: italic;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+    z-index: 11;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  #preloadHint.show { opacity: 1; }
+  .credits-link {
+    position: fixed;
+    left: 12px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    color: rgba(255, 244, 224, 0.55);
+    font-size: 12px;
+    text-decoration: none;
+    letter-spacing: 0.03em;
+    z-index: 20;
+    pointer-events: auto;
+    font-family: Georgia, serif;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+  .credits-link:hover { color: rgba(255, 244, 224, 0.9); }
+  #endCard .credits-link { position: static; margin-top: 18px; display: inline-block; }
+
+  #creditsOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(10, 6, 18, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+    pointer-events: auto;
+  }
+  #creditsOverlay.hidden { display: none; }
+  .credits-panel {
+    max-width: 520px;
+    width: 100%;
+    max-height: 82vh;
+    overflow-y: auto;
+    background: linear-gradient(180deg, rgba(250,242,224,0.98), rgba(238,226,202,0.98));
+    color: #3a2c1e;
+    border-radius: 18px;
+    padding: 26px 28px;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .credits-panel h3 {
+    margin: 0 0 12px 0;
+    font-size: 19px;
+    letter-spacing: 0.04em;
+    color: #2a2015;
+  }
+  .credits-panel h4 {
+    margin: 18px 0 6px 0;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .credits-panel p { margin: 4px 0; }
+  .credits-panel .credit-row { margin: 6px 0; }
+  .credits-panel .credit-row .latin { font-style: italic; opacity: 0.75; }
+  .credits-close {
+    margin-top: 18px;
+    background: rgba(58,44,30,0.9);
+    color: #f8f0dc;
+    border: none;
+    border-radius: 999px;
+    padding: 9px 20px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* Field guide card */
+  #fieldGuideCard {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -46%) scale(0.96);
+    z-index: 15;
+    width: min(88vw, 360px);
+    background:
+      radial-gradient(circle at 18% 12%, rgba(255,255,255,0.5), rgba(255,255,255,0) 55%),
+      linear-gradient(180deg, rgba(250,244,230,0.97), rgba(236,225,201,0.97));
+    border-radius: 22px;
+    box-shadow: 0 20px 50px rgba(20,10,5,0.4), inset 0 0 0 1px rgba(255,255,255,0.4);
+    padding: 20px 22px 18px;
+    box-sizing: border-box;
+    text-align: center;
+    color: #3a2c1e;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.22, 0.9, 0.35, 1);
+  }
+  #fieldGuideCard.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+  }
+  #fieldGuideCard .fg-photo-wrap {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  #fieldGuideCard .fg-photo {
+    max-width: 78%;
+    max-height: 34vh;
+    filter: drop-shadow(0 10px 18px rgba(20,10,5,0.35));
+  }
+  #fieldGuideCard .fg-name {
+    font-size: clamp(19px, 5.4vw, 24px);
+    letter-spacing: 0.03em;
+    margin: 2px 0 0 0;
+  }
+  #fieldGuideCard .fg-latin {
+    font-style: italic;
+    font-size: 13px;
+    opacity: 0.68;
+    margin: 2px 0 10px 0;
+  }
+  #fieldGuideCard .fg-credit {
+    font-size: 11px;
+    opacity: 0.6;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+  #fieldGuideCard .fg-tap-hint {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.4;
+    margin: 10px 0 0 0;
+  }
 </style>
 </head>
 <body>
@@ -166,6 +315,7 @@
   <h1 class="title-main">DAWN CHORUS</h1>
   <p class="title-sub">Listen. Echo. Wake the forest.</p>
   <p class="title-tap">tap to begin</p>
+  <button id="creditsLinkTitle" class="credits-link" style="margin-top:22px;">credits</button>
 </div>
 
 <div id="endCard" class="hidden">
@@ -173,7 +323,34 @@
   <div class="stars" id="starDisplay"></div>
   <p class="end-sub" id="endSub"></p>
   <button id="replayGameBtn" class="ui-btn" style="font-size:16px;padding:12px 26px;">begin again</button>
+  <br>
+  <button id="creditsLinkEnd" class="credits-link">credits</button>
 </div>
+
+<div id="fieldGuideCard">
+  <div class="fg-photo-wrap"><img class="fg-photo" id="fgPhoto" alt=""></div>
+  <p class="fg-name" id="fgName"></p>
+  <p class="fg-latin" id="fgLatin"></p>
+  <p class="fg-credit" id="fgCredit"></p>
+  <p class="fg-tap-hint">tap to continue</p>
+</div>
+
+<div id="creditsOverlay" class="hidden">
+  <div class="credits-panel">
+    <h3>Credits</h3>
+    <p>Bird photographs licensed via Adobe Stock (standard license), background removed with the Adobe Photoshop API.</p>
+    <h4>Song recordings, xeno-canto.org</h4>
+    <div class="credit-row"><strong>Eurasian Wren</strong> <span class="latin">Troglodytes troglodytes</span><br>Sunny Tseng, XC1152294 (CC BY-NC-SA 4.0)</div>
+    <div class="credit-row"><strong>European Robin</strong> <span class="latin">Erithacus rubecula</span><br>steve, XC1142125 (CC BY-SA 4.0)</div>
+    <div class="credit-row"><strong>Common Blackbird</strong> <span class="latin">Turdus merula</span><br>Clement Bruneau, XC1150997 (CC BY-NC-SA 4.0)</div>
+    <div class="credit-row"><strong>Great Tit</strong> <span class="latin">Parus major</span><br>Sunny Tseng, XC1152300 (CC BY-NC-SA 4.0)</div>
+    <div class="credit-row"><strong>European Goldfinch</strong> <span class="latin">Carduelis carduelis</span><br>Pascal Christe, XC1152232 (CC BY-SA 4.0)</div>
+    <p style="margin-top:14px; opacity:0.7;">Full details: CREDITS.md in this repo.</p>
+    <button class="credits-close" id="creditsCloseBtn">close</button>
+  </div>
+</div>
+
+<div id="preloadHint">waking the forest&hellip;</div>
 
 <a class="hub-link" href="https://kevin-sotka.github.io/the-aviary/">&#8962; The Aviary</a>
 
@@ -222,6 +399,7 @@
   // ---------------------------------------------------------------------
   var actx = null;
   var masterGain, musicBus, sfxBus, delayNode, delayFeedback, delayWet, reverbConvolver, reverbWet;
+  var duckGain = null; // sits between musicBus/sfxBus and master/fx sends; ramped down while a real song plays
   var muted = false;
   var audioReady = false;
 
@@ -252,6 +430,11 @@
     sfxBus = actx.createGain();
     sfxBus.gain.value = 1.0;
 
+    // duck bus: synth voices route through this so real birdsong can duck them
+    duckGain = actx.createGain();
+    duckGain.gain.value = 1.0;
+    duckGain.connect(masterGain);
+
     // shared feedback delay for a little airy space
     delayNode = actx.createDelay(1.2);
     delayNode.delayTime.value = 0.28;
@@ -262,7 +445,7 @@
     delayNode.connect(delayFeedback);
     delayFeedback.connect(delayNode);
     delayNode.connect(delayWet);
-    delayWet.connect(masterGain);
+    delayWet.connect(duckGain);
 
     // shared reverb (small convolver) for lushness
     reverbConvolver = actx.createConvolver();
@@ -270,13 +453,13 @@
     reverbWet = actx.createGain();
     reverbWet.gain.value = 0.30;
     reverbConvolver.connect(reverbWet);
-    reverbWet.connect(masterGain);
+    reverbWet.connect(duckGain);
 
-    musicBus.connect(masterGain);
+    musicBus.connect(duckGain);
     musicBus.connect(delayNode);
     musicBus.connect(reverbConvolver);
 
-    sfxBus.connect(masterGain);
+    sfxBus.connect(duckGain);
     sfxBus.connect(delayNode);
     sfxBus.connect(reverbConvolver);
 
@@ -286,6 +469,15 @@
   function resumeAudio() {
     if (!actx) initAudio();
     if (actx.state === 'suspended') actx.resume();
+  }
+
+  // Duck the synth voices (music + sfx buses) to `amount` (0..1) over rampTime seconds.
+  // Used whenever a real bird recording plays, so it can be heard clearly.
+  function duckSynth(amount, rampTime) {
+    if (!actx || !duckGain) return;
+    var now = actx.currentTime;
+    duckGain.gain.cancelScheduledValues(now);
+    duckGain.gain.setTargetAtTime(amount, now, rampTime || 0.25);
   }
 
   function setMuted(m) {
@@ -309,6 +501,9 @@
     {
       key: 'wren',
       name: 'Wren',
+      fieldGuideName: 'Eurasian Wren',
+      latin: 'Troglodytes troglodytes',
+      credit: 'song: Sunny Tseng, XC1152294 (CC BY-NC-SA 4.0)',
       color: '#b5651d',
       colorRgb: hexToRgb('#b5651d'),
       notes: [0, 1, 2, 3],       // scale indices
@@ -318,6 +513,9 @@
     {
       key: 'robin',
       name: 'Robin',
+      fieldGuideName: 'European Robin',
+      latin: 'Erithacus rubecula',
+      credit: 'song: steve, XC1142125 (CC BY-SA 4.0)',
       color: '#e2532d',
       colorRgb: hexToRgb('#e2532d'),
       notes: [2, 3, 4, 5],
@@ -327,6 +525,9 @@
     {
       key: 'blackbird',
       name: 'Blackbird',
+      fieldGuideName: 'Common Blackbird',
+      latin: 'Turdus merula',
+      credit: 'song: Clement Bruneau, XC1150997 (CC BY-NC-SA 4.0)',
       color: '#d4af37',
       colorRgb: hexToRgb('#d4af37'),
       notes: [1, 3, 5, 6],
@@ -334,10 +535,14 @@
       voice: 'blackbird'
     },
     {
-      key: 'thrush',
-      name: 'Song Thrush',
-      color: '#e8dcb8',
-      colorRgb: hexToRgb('#e8dcb8'),
+      key: 'greattit',
+      name: 'Great Tit',
+      fieldGuideName: 'Great Tit',
+      latin: 'Parus major',
+      credit: 'song: Sunny Tseng, XC1152300 (CC BY-NC-SA 4.0)',
+      color: '#f2d43a',
+      colorRgb: hexToRgb('#f2d43a'),
+      capColor: '#161018',
       notes: [4, 6, 7, 8],
       phraseLen: 5,
       voice: 'thrush'
@@ -345,6 +550,9 @@
     {
       key: 'goldfinch',
       name: 'Goldfinch',
+      fieldGuideName: 'European Goldfinch',
+      latin: 'Carduelis carduelis',
+      credit: 'song: Pascal Christe, XC1152232 (CC BY-SA 4.0)',
       color: '#f2c230',
       colorRgb: hexToRgb('#f2c230'),
       notes: [5, 7, 8, 9],
@@ -534,6 +742,187 @@
   }
 
   // ---------------------------------------------------------------------
+  // Real asset preloading (photos + songs). v1 fallback if anything fails:
+  // the game runs synth-only, silhouettes-only, no field guide cards.
+  // ---------------------------------------------------------------------
+  var REAL_ASSETS_READY = false;   // true only if every photo + song loaded OK
+  var realPhotos = {};             // key -> HTMLImageElement (loaded)
+  var realSongBuffers = {};        // key -> AudioBuffer (decoded), used for playback
+
+  function preloadRealAssets(onDone) {
+    var keys = BIRDS.map(function (b) { return b.key; });
+    var totalTasks = keys.length * 2; // photo + song per bird
+    var done = 0;
+    var failed = false;
+
+    function taskDone(ok) {
+      if (!ok) failed = true;
+      done++;
+      if (done >= totalTasks) {
+        REAL_ASSETS_READY = !failed;
+        onDone(REAL_ASSETS_READY);
+      }
+    }
+
+    keys.forEach(function (key) {
+      // Photo
+      var img = new Image();
+      img.onload = function () { realPhotos[key] = img; taskDone(true); };
+      img.onerror = function () { taskDone(false); };
+      img.src = 'assets/birds/' + key + '.png';
+
+      // Song: fetch + decode to an AudioBuffer so we get precise volume control
+      // and can play it through WebAudio alongside the synth chorus.
+      fetch('assets/songs/' + key + '.mp3')
+        .then(function (resp) {
+          if (!resp.ok) throw new Error('song fetch failed: ' + key);
+          return resp.arrayBuffer();
+        })
+        .then(function (buf) {
+          if (!actx) throw new Error('no audio context');
+          return actx.decodeAudioData(buf);
+        })
+        .then(function (audioBuffer) {
+          realSongBuffers[key] = audioBuffer;
+          taskDone(true);
+        })
+        .catch(function () {
+          taskDone(false);
+        });
+    });
+  }
+
+  // Plays a bird's real recording once through WebAudio at the given gain.
+  // Returns the duration in seconds (0 if unavailable).
+  function playRealSong(key, gain, onEnded) {
+    if (!REAL_ASSETS_READY || !actx || !realSongBuffers[key]) {
+      if (onEnded) onEnded();
+      return 0;
+    }
+    var buf = realSongBuffers[key];
+    var src = actx.createBufferSource();
+    src.buffer = buf;
+    var g = actx.createGain();
+    g.gain.value = gain;
+    src.connect(g);
+    g.connect(realSongBus());
+    src.onended = function () { if (onEnded) onEnded(); };
+    src.start(actx.currentTime + 0.01);
+    return buf.duration;
+  }
+
+  // Real songs get their own bus straight to masterGain (not through duckGain),
+  // so they are never ducked by themselves and stay clear while synth voices duck.
+  var _realSongBus = null;
+  function realSongBus() {
+    if (!_realSongBus && actx) {
+      _realSongBus = actx.createGain();
+      _realSongBus.gain.value = 1.0;
+      _realSongBus.connect(masterGain);
+    }
+    return _realSongBus;
+  }
+
+  // ---------------------------------------------------------------------
+  // Field guide card: shown once per bird, before its phrase teaching begins.
+  // Only used when REAL_ASSETS_READY.
+  // ---------------------------------------------------------------------
+  var fieldGuideEl = document.getElementById('fieldGuideCard');
+  var fgDismissTimer = null;
+  var fgActive = false;
+  var fgOnDismiss = null;
+
+  function showFieldGuideCard(bird, onDismiss) {
+    fgActive = true;
+    fgOnDismiss = onDismiss;
+    document.getElementById('fgPhoto').src = 'assets/birds/' + bird.key + '.png';
+    document.getElementById('fgPhoto').alt = bird.fieldGuideName || bird.name;
+    document.getElementById('fgName').textContent = bird.fieldGuideName || bird.name;
+    document.getElementById('fgLatin').textContent = bird.latin || '';
+    document.getElementById('fgCredit').textContent = bird.credit || '';
+    fieldGuideEl.style.boxShadow =
+      '0 20px 50px rgba(20,10,5,0.4), inset 0 0 0 1px rgba(255,255,255,0.4), inset 0 0 0 3px ' + bird.color;
+    fieldGuideEl.classList.add('show');
+
+    // duck synths while the card is up and the real song plays
+    duckSynth(0.3, 0.4);
+
+    var dur = playRealSong(bird.key, 0.9, function () {
+      // song ended naturally; auto-dismiss if still active
+      dismissFieldGuideCard();
+    });
+
+    // safety auto-dismiss in case the song is short/long or unavailable
+    var waitMs = Math.max(1200, (dur || 2.2) * 1000 + 250);
+    if (fgDismissTimer) clearTimeout(fgDismissTimer);
+    fgDismissTimer = setTimeout(function () {
+      dismissFieldGuideCard();
+    }, waitMs);
+  }
+
+  function dismissFieldGuideCard() {
+    if (!fgActive) return;
+    fgActive = false;
+    fieldGuideEl.classList.remove('show');
+    if (fgDismissTimer) { clearTimeout(fgDismissTimer); fgDismissTimer = null; }
+    duckSynth(1.0, 0.5);
+    var cb = fgOnDismiss;
+    fgOnDismiss = null;
+    if (cb) cb();
+  }
+
+  fieldGuideEl.addEventListener('pointerdown', function (e) {
+    e.stopPropagation(); e.preventDefault();
+    dismissFieldGuideCard();
+  });
+
+  // ---------------------------------------------------------------------
+  // Chorus real-song rotation: while birds are joined, occasionally let one
+  // bird's real recording play quietly over the synth loops. Never overlaps
+  // two real songs; rotates among joined birds; one at a time.
+  // ---------------------------------------------------------------------
+  var chorusRealSongTimer = null;
+  var chorusRealSongPlaying = false;
+  var chorusRealSongLastKey = null;
+
+  function scheduleNextChorusRealSong() {
+    if (chorusRealSongTimer) clearTimeout(chorusRealSongTimer);
+    if (!REAL_ASSETS_READY) return;
+    var delay = rand(8000, 14000);
+    chorusRealSongTimer = setTimeout(chorusRealSongTick, delay);
+  }
+
+  function chorusRealSongTick() {
+    if (!REAL_ASSETS_READY || chorusRealSongPlaying) { scheduleNextChorusRealSong(); return; }
+    if (state === STATE.FINALE || state === STATE.END) return; // finale has its own cascade
+    if (!activeLoopBirds.length) { scheduleNextChorusRealSong(); return; }
+
+    // pick a joined bird, rotating away from the last one played if possible
+    var candidates = activeLoopBirds.filter(function (b) { return b.key !== chorusRealSongLastKey; });
+    if (!candidates.length) candidates = activeLoopBirds;
+    var bird = choice(candidates);
+    chorusRealSongLastKey = bird.key;
+    chorusRealSongPlaying = true;
+
+    playRealSong(bird.key, 0.22, function () {
+      chorusRealSongPlaying = false;
+    });
+
+    scheduleNextChorusRealSong();
+  }
+
+  function startChorusRealSongs() {
+    if (!REAL_ASSETS_READY) return;
+    scheduleNextChorusRealSong();
+  }
+
+  function stopChorusRealSongs() {
+    if (chorusRealSongTimer) { clearTimeout(chorusRealSongTimer); chorusRealSongTimer = null; }
+    chorusRealSongPlaying = false;
+    chorusRealSongLastKey = null;
+  }
+
+  // ---------------------------------------------------------------------
   // Chorus loop engine: quantized ambient loops, one shared clock.
   // Lookahead scheduler pattern.
   // ---------------------------------------------------------------------
@@ -606,11 +995,13 @@
     chorusStartTime = actx.currentTime + 0.06;
     nextBarToSchedule = 0;
     chorusTimer = setInterval(chorusScheduleTick, LOOKAHEAD * 1000);
+    startChorusRealSongs();
   }
 
   function stopChorus() {
     chorusRunning = false;
     if (chorusTimer) { clearInterval(chorusTimer); chorusTimer = null; }
+    stopChorusRealSongs();
   }
 
   // Add a bird's loop to the chorus, aligned to the next bar boundary (quantized).
@@ -898,16 +1289,19 @@
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // speckles for thrush
-    if (b.bird.key === 'thrush') {
-      ctx.fillStyle = 'rgba(60,45,30,0.7)';
-      for (var s = 0; s < 6; s++) {
-        var sx = R * (-0.02 + (s % 3) * 0.11);
-        var sy = -R * (0.42 + Math.floor(s / 3) * 0.14);
-        ctx.beginPath();
-        ctx.arc(sx, sy, R * 0.035, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    // black cap + throat stripe for great tit
+    if (b.bird.key === 'greattit') {
+      ctx.fillStyle = b.bird.capColor || '#161018';
+      ctx.beginPath();
+      ctx.ellipse(R * 0.30, -R * 0.95, R * 0.24, R * 0.13, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(R * 0.06, -R * 0.62);
+      ctx.lineTo(R * 0.14, -R * 0.30);
+      ctx.lineTo(R * 0.02, -R * 0.30);
+      ctx.lineTo(-R * 0.02, -R * 0.62);
+      ctx.closePath();
+      ctx.fill();
     }
     // eye
     ctx.fillStyle = '#f4ecd8';
@@ -970,19 +1364,37 @@
     return seq;
   }
 
+  var birdsFieldGuideShown = {}; // key -> true once its card has been shown this playthrough
+
   function startBirdIntro(birdIdx, slow, keepPhrase) {
     state = STATE.BIRD_INTRO;
     inputLocked = true;
     currentBirdIndex = birdIdx;
     var branch = birdBranch(birdIdx);
     var bird = branch.bird;
-    if (!slow && !keepPhrase) {
+    var isFreshRound = !slow && !keepPhrase;
+    if (isFreshRound) {
       currentPhrase = rollPhrase(bird);
       playerStep = 0;
     }
     updateTurnIndicator();
     document.getElementById('replayBtn').classList.remove('show');
 
+    // Field guide card: only on a bird's very first fresh round this playthrough,
+    // and only when the real assets loaded. Song plays once, then the synth
+    // phrase teaching begins exactly as before.
+    if (isFreshRound && REAL_ASSETS_READY && !birdsFieldGuideShown[bird.key]) {
+      birdsFieldGuideShown[bird.key] = true;
+      showFieldGuideCard(bird, function () {
+        runPhraseTeaching(branch, bird, slow);
+      });
+      return;
+    }
+
+    runPhraseTeaching(branch, bird, slow);
+  }
+
+  function runPhraseTeaching(branch, bird, slow) {
     var noteGap = slow ? 0.62 : 0.42;
     var startDelay = 0.15;
     isPlayingPhrase = true;
@@ -1133,6 +1545,10 @@
     document.getElementById('turnIndicator').innerHTML = '&#9733; the chorus is complete';
     document.getElementById('replayBtn').classList.remove('show');
 
+    // Stop the ambient real-song rotation; the finale runs its own cascade below
+    // so the two systems never talk over each other.
+    stopChorusRealSongs();
+
     // Align: wait for next bar boundary for the "downbeat" alignment moment, then flood.
     var nextBar = getNextBarTime();
     finaleStartedAt = nextBar;
@@ -1150,7 +1566,23 @@
     var waitMs = Math.max(0, (nextBar - actx.currentTime) * 1000);
     setTimeout(function () {
       finaleFlood = 1;
+      startFinaleRealSongCascade();
     }, waitMs);
+  }
+
+  // Staggered cascade: each joined bird's real song starts 0.7s apart at low
+  // volume, overlapping (this is the one deliberate exception to "never overlap
+  // two real songs", since the finale wants the full-forest-waking feeling).
+  function startFinaleRealSongCascade() {
+    if (!REAL_ASSETS_READY) return;
+    for (var i = 0; i < activeLoopBirds.length; i++) {
+      (function (bird, i) {
+        setTimeout(function () {
+          if (state !== STATE.FINALE && state !== STATE.END) return;
+          playRealSong(bird.key, 0.3);
+        }, i * 700);
+      })(activeLoopBirds[i], i);
+    }
   }
 
   function endGame() {
@@ -1178,6 +1610,9 @@
     finaleBarCallback = null;
     stopChorus();
     activeLoopBirds = [];
+    duckSynth(1.0, 0.05);
+    birdsFieldGuideShown = {};
+    dismissFieldGuideCard();
     for (var i = 0; i < branches.length; i++) {
       branches[i].glow = 0;
       branches[i].flutter = 0;
@@ -1351,10 +1786,60 @@
   requestAnimationFrame(frame);
 
   // ---------------------------------------------------------------------
+  // Credits overlay wiring
+  // ---------------------------------------------------------------------
+  function showCredits() {
+    document.getElementById('creditsOverlay').classList.remove('hidden');
+  }
+  function hideCredits() {
+    document.getElementById('creditsOverlay').classList.add('hidden');
+  }
+  document.getElementById('creditsLinkTitle').addEventListener('pointerdown', function (e) {
+    e.stopPropagation(); e.preventDefault();
+    showCredits();
+  });
+  document.getElementById('creditsLinkEnd').addEventListener('pointerdown', function (e) {
+    e.stopPropagation(); e.preventDefault();
+    showCredits();
+  });
+  document.getElementById('creditsCloseBtn').addEventListener('pointerdown', function (e) {
+    e.stopPropagation(); e.preventDefault();
+    hideCredits();
+  });
+  document.getElementById('creditsOverlay').addEventListener('pointerdown', function (e) {
+    if (e.target.id === 'creditsOverlay') hideCredits();
+  });
+
+  // ---------------------------------------------------------------------
   // Init
   // ---------------------------------------------------------------------
   resize();
   setMuted(false);
+
+  // Kick off real-asset preloading on the title screen. This never blocks play:
+  // if it's still running (or fails) when the player taps "tap to begin", the
+  // game simply proceeds v1-style (synth only, silhouettes only, no cards).
+  // initAudio() is safe to call without a user gesture; it just starts the
+  // AudioContext suspended, which is fine for decodeAudioData.
+  (function beginPreload() {
+    try {
+      initAudio();
+    } catch (e) {
+      // No WebAudio available at all: real assets can't play through it.
+      // Leave REAL_ASSETS_READY false and let v1 behavior stand.
+      return;
+    }
+    var hintEl = document.getElementById('preloadHint');
+    hintEl.classList.add('show');
+    try {
+      preloadRealAssets(function (ok) {
+        hintEl.classList.remove('show');
+      });
+    } catch (e) {
+      hintEl.classList.remove('show');
+      REAL_ASSETS_READY = false;
+    }
+  })();
 
   // Prevent iOS Safari page bounce/zoom gestures on the play surface
   document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
